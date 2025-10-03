@@ -1,0 +1,25 @@
+[project]
+name = "lightlm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "blobfile>=3.1.0",
+    "dataclasses>=0.8",
+    "datasets>=4.1.1",
+    "datatrove>=0.6.0",
+    "huggingface-hub>=0.35.3",
+    "matplotlib>=3.10.6",
+    "sentencepiece>=0.2.1",
+    "tiktoken>=0.11.0",
+    "transformers>=4.56.2",
+]
+
+[project.optional-dependencies]
+cuda124 = [
+    "torch>=2.5.0",
+]
+cuda128 = [
+    "torch>=2.8.0",
+]
