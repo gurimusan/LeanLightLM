@@ -1,8 +1,13 @@
-# python train_japanese.py --gpu rtx4060
-# python train_japanese.py --gpu rtx5090
+# python train_japanese.py
 # 日本語特化LLMの学習スクリプト
 # データセット: fineweb-2-edu-japanese (sample_10BT - 100億トークン)
 # Tokenizer: rinna/japanese-gpt-neox-3.6b
+# VRAM容量に応じて自動的に最適な設定を選択します
+#
+# コマンドライン例:
+# python train.py  # 自動設定
+# python train.py --batch_size 4 --accumulation_steps 8  # カスタム設定
+# python train.py --max_seq_len 2048 --batch_size 2  # シーケンス長とバッチサイズを指定
 
 from model import Transformer, ModelConfig
 from trainer import Trainer, TrainerConfig, DataLoader
@@ -14,31 +19,76 @@ import argparse
 torch.set_float32_matmul_precision('high')
 torch.cuda.empty_cache()
 
+def get_vram_gb():
+    """利用可能なVRAM容量（GB）を取得"""
+    if torch.cuda.is_available():
+        return torch.cuda.get_device_properties(0).total_memory / (1024**3)
+    return 0
+
+def get_training_config_by_vram():
+    """VRAM容量に応じた学習設定を返す"""
+    vram_gb = get_vram_gb()
+
+    if vram_gb >= 24:  # RTX 4090 (24GB), RTX 5090 (32GB)
+        return {
+            'max_seq_len': 1024,
+            'batch_size': 8,
+            'accumulation_steps': 4,
+            'use_compile': True,
+            'use_dtype': 'bfloat16',
+            'category': f'High-end ({vram_gb:.1f}GB VRAM)'
+        }
+    elif vram_gb >= 12:  # RTX 4060 Ti 16GB, RTX 3090 (24GB)
+        return {
+            'max_seq_len': 1024,
+            'batch_size': 4,
+            'accumulation_steps': 8,
+            'use_compile': True,
+            'use_dtype': 'bfloat16',
+            'category': f'Mid-range ({vram_gb:.1f}GB VRAM)'
+        }
+    elif vram_gb >= 8:  # RTX 4060 8GB
+        return {
+            'max_seq_len': 1024,
+            'batch_size': 1,
+            'accumulation_steps': 32,
+            'use_compile': False,
+            'use_dtype': 'bfloat16',
+            'category': f'Entry-level ({vram_gb:.1f}GB VRAM)'
+        }
+    else:  # < 8GB
+        return {
+            'max_seq_len': 1024,
+            'batch_size': 1,
+            'accumulation_steps': 32,
+            'use_compile': False,
+            'use_dtype': 'float16',  # bf16非対応の可能性があるのでfp16
+            'category': f'Low VRAM ({vram_gb:.1f}GB VRAM)'
+        }
+
 # コマンドライン引数のパース
 parser = argparse.ArgumentParser(description='日本語LLM学習スクリプト')
-parser.add_argument('--gpu', type=str, default='rtx5090', choices=['rtx4060', 'rtx5090'],
-                    help='GPU設定を選択 (rtx4060: 8GB VRAM, rtx5090: 32GB VRAM)')
+parser.add_argument('--max_seq_len', type=int, default=None,
+                    help='最大シーケンス長 (デフォルト: VRAM容量に基づく自動設定)')
+parser.add_argument('--batch_size', type=int, default=None,
+                    help='バッチサイズ (デフォルト: VRAM容量に基づく自動設定)')
+parser.add_argument('--accumulation_steps', type=int, default=None,
+                    help='勾配累積ステップ数 (デフォルト: VRAM容量に基づく自動設定)')
 args = parser.parse_args()
 
-# GPU別の設定
-if args.gpu == 'rtx4060':
-    # RTX 4060 (8GB VRAM) 用設定
-    GPU_CONFIG = {
-        'max_seq_len': 1024,
-        'batch_size': 1,
-        'accumulation_steps': 32,
-        'use_compile': False,
-        'use_dtype': 'bfloat16',
-    }
-else:  # rtx5090
-    # RTX 5090 (32GB VRAM) 用設定
-    GPU_CONFIG = {
-        'max_seq_len': 1024,
-        'batch_size': 8,
-        'accumulation_steps': 4,
-        'use_compile': True,
-        'use_dtype': 'bfloat16',
-    }
+# VRAM容量に応じた設定を自動選択
+GPU_CONFIG = get_training_config_by_vram()
+
+# コマンドライン引数で上書き
+if args.max_seq_len is not None:
+    GPU_CONFIG['max_seq_len'] = args.max_seq_len
+    GPU_CONFIG['category'] += ' (custom max_seq_len)'
+if args.batch_size is not None:
+    GPU_CONFIG['batch_size'] = args.batch_size
+    GPU_CONFIG['category'] += ' (custom batch_size)'
+if args.accumulation_steps is not None:
+    GPU_CONFIG['accumulation_steps'] = args.accumulation_steps
+    GPU_CONFIG['category'] += ' (custom accumulation_steps)'
 
 # 日本語tokenizer (vocab_size=32000)
 tokenizer_id = "rinna/japanese-gpt-neox-3.6b"
@@ -128,7 +178,12 @@ config = ModelConfig(
 print("=" * 80)
 print("日本語LLM学習設定 (sample_10BT - 100億トークン)")
 print("=" * 80)
-print(f"GPU設定: {args.gpu.upper()}")
+if torch.cuda.is_available():
+    print(f"GPU: {torch.cuda.get_device_name(0)}")
+    print(f"VRAM: {get_vram_gb():.1f}GB")
+    print(f"設定カテゴリ: {GPU_CONFIG['category']}")
+else:
+    print("GPU: Not available")
 print(f"Tokenizer: {tokenizer_id}")
 print(f"Vocab size: {tokenizer.vocab_size}")
 print(f"Dataset: {train_config.tokenized_dataset_path}")
