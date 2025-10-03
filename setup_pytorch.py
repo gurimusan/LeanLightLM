@@ -38,15 +38,15 @@ def install_pytorch():
     if not gpu_names:
         print("Warning: Could not detect GPU. Installing latest PyTorch version.")
         print("If you have an RTX 5090, this should work correctly.")
-        cmd = ['uv', 'pip', 'install', 'torch>=2.8.0', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128']
+        cmd = ['uv', 'pip', 'install', '--reinstall', 'torch>=2.8.0', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128']
     elif requires_cuda_128(gpu_names):
         print(f"Detected GPU(s) requiring CUDA 12.8+: {', '.join(gpu_names)}")
         print("Installing PyTorch 2.8+ with CUDA 12.8...")
-        cmd = ['uv', 'pip', 'install', 'torch>=2.8.0', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128']
+        cmd = ['uv', 'pip', 'install', '--reinstall', 'torch>=2.8.0', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128']
     else:
         print(f"Detected GPU(s): {', '.join(gpu_names)}")
         print("Installing PyTorch with CUDA 12.4...")
-        cmd = ['uv', 'pip', 'install', 'torch>=2.5.0', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu124']
+        cmd = ['uv', 'pip', 'install', '--reinstall', 'torch>=2.5.0', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu124']
 
     print(f"Running: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)

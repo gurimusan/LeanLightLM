@@ -5,14 +5,11 @@ set -e
 
 echo "Installing LightLM with GPU-specific PyTorch version..."
 
-# Install base dependencies first (without torch)
-uv sync --no-install-project
-
-# Run the GPU detection and PyTorch installation script
-uv run python setup_pytorch.py
-
-# Install the project itself
+# Install base dependencies with default PyTorch
 uv sync
+
+# Run the GPU detection and PyTorch installation script (will reinstall with correct CUDA version)
+uv run python setup_pytorch.py
 
 echo ""
 echo "Installation completed!"
