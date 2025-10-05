@@ -288,14 +288,35 @@ class DataLoader():
         raise RuntimeError(f"Could not find a text column in dataset. Columns: {ds.column_names}")
 
     def _get_tokenize_fn(self, text_col):
-        """トークナイズ関数を返すヘルパーメソッド"""
+        """トークナイズ関数を返すヘルパーメソッド
+
+        連続テキスト学習用: パディングなし、文書を連結して固定長チャンクに分割
+        """
         def tokenize_fn(batch):
-            return self.tokenizer(
-                batch[text_col],
-                truncation=True,
-                max_length=self.config.max_seq_len,
-                padding='max_length'
+            # バッチ内の全テキストを連結してトークナイズ
+            concatenated_text = " ".join(batch[text_col])
+
+            # トークナイズ（パディングなし）
+            tokenized = self.tokenizer(
+                concatenated_text,
+                truncation=False,
+                add_special_tokens=False,  # EOSを自動追加しない
             )
+
+            # 固定長チャンク(max_seq_len + 1)に分割
+            # +1は次トークン予測のため
+            input_ids = tokenized['input_ids']
+            chunk_size = self.config.max_seq_len + 1
+
+            # チャンクに分割
+            chunks = []
+            for i in range(0, len(input_ids) - chunk_size + 1, self.config.max_seq_len):
+                chunk = input_ids[i:i + chunk_size]
+                if len(chunk) == chunk_size:
+                    chunks.append(chunk)
+
+            return {'input_ids': chunks}
+
         return tokenize_fn
 
     def num_train_steps(self):
