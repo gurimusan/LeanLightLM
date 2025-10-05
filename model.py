@@ -158,9 +158,9 @@ class GroupedQueryAttention(nn.Module):
             k = self.wk(x[:, -1, :])
             v = self.wv(x[:, -1, :])
 
-            q = q.view(c_batch_size, c_context_len, self.num_heads, self.head_dim).transpose(1, 2)      # B, T, qh, hs
-            k = k.view(c_batch_size, c_context_len, self.num_kv_heads, self.head_dim).transpose(1, 2)   # B, T, kh, hs
-            v = v.view(c_batch_size, c_context_len, self.num_kv_heads, self.head_dim).transpose(1, 2)   # B, T, vh, hs
+            q = q.view(c_batch_size, c_context_len, self.num_heads, self.head_dim).transpose(1, 2)      # B, qh, T, hs
+            k = k.view(c_batch_size, c_context_len, self.num_kv_heads, self.head_dim).transpose(1, 2)   # B, kh, T, hs
+            v = v.view(c_batch_size, c_context_len, self.num_kv_heads, self.head_dim).transpose(1, 2)   # B, vh, T, hs
 
             # キャッシュブランチでは入力長が1のため、forwardで渡されるcos, sinは位置0のもののみ
             # 実際には新しいトークンはstart_posの位置にあるため、その位置のRoPE埋め込みを直接計算する必要がある
@@ -190,7 +190,7 @@ class GroupedQueryAttention(nn.Module):
             # keys = apply_rotary_pos(k, freqs_complex, device=x.device)
 
             if self.use_cache:
-                _k, _v = self.update_kv_cache(batch_size=c_batch_size, start_pos=start_pos, context_len=c_context_len, keys=keys, values=v, device=x.device)
+                _k, _v = self.update_kv_cache(batch_size=c_batch_size, start_pos=start_pos, context_len=c_context_len, keys=keys.transpose(1,2), values=v.transpose(1,2), device=x.device)
 
         if self.use_flash:
             # Flash AttentionとKVキャッシュの組み合わせでGQAが正しく動作しない場合があるため
