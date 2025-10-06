@@ -74,6 +74,10 @@ parser.add_argument('--batch_size', type=int, default=None,
                     help='バッチサイズ (デフォルト: VRAM容量に基づく自動設定)')
 parser.add_argument('--accumulation_steps', type=int, default=None,
                     help='勾配累積ステップ数 (デフォルト: VRAM容量に基づく自動設定)')
+parser.add_argument('--checkpoint_path', type=str, default='',
+                    help='チェックポイントファイルのパス (例: ./checkpoints_japanese/model.checkpoint.epoch0_step100_global100.pt)')
+parser.add_argument('--no_continue_train', action='store_true',
+                    help='チェックポイントから学習を再開しない場合に指定')
 args = parser.parse_args()
 
 # VRAM容量に応じた設定を自動選択
@@ -96,8 +100,8 @@ tokenizer = AutoTokenizer.from_pretrained(tokenizer_id, use_fast=False)
 tokenizer.pad_token = tokenizer.eos_token
 
 # チェックポイントから再開する場合の設定
-checkpoint_path = ''  # 例: './checkpoints_japanese/model.checkpoint.epoch0_step100_global100.pt'
-continue_train = False
+checkpoint_path = args.checkpoint_path
+continue_train = (not args.no_continue_train) and bool(checkpoint_path)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
