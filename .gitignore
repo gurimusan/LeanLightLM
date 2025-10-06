@@ -9,5 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
-# cache dir
-cache
+# common
+cache/
+log/
+checkpoints_japanese/
+hf_model/
